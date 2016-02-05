@@ -9,6 +9,12 @@ security:
         oauth_token:
             pattern: ^/oauth/v2/token
             security: false
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+        api_docs:
+            pattern: ^/api/doc
+            security: false
         api:
             pattern: ^/
             fos_oauth: true
