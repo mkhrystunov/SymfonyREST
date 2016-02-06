@@ -7,4 +7,10 @@ fos_oauth_server_token:
 
 users:
     type: rest
+    prefix: /api
     resource: "@AppBundle/Controller/UsersController.php"
+
+photos:
+    type: rest
+    prefix: /api
+    resource: "@AppBundle/Controller/PhotosController.php"
