@@ -4,6 +4,12 @@
     <i class="glyphicon glyphicon-plus"></i>
 </a>
 
+<div class="input-group">
+    <input type="text" class="form-control" placeholder="Search by tags..." ng-model="query">
+      <span class="input-group-btn">
+      </span>
+</div><!-- /input-group -->
+
 <table class="table photos-table">
     <thead>
     <tr>
@@ -13,7 +19,7 @@
         <th>Actions</th>
     </tr>
     </thead>
-    <tr ng-repeat="photo in photos | filterPagination">
+    <tr ng-repeat="photo in photos | searchFilter:query | filterPagination">
         <td>{{photo.id}}</td>
         <td>
             <ul>
@@ -39,7 +45,7 @@
 </table>
 <div class="text-center">
     <uib-pagination
-        total-items="photos.length"
+        total-items="photos | searchFilter:query | length "
         ng-model="pagination.currentPage"
         class="pagination"
         items-per-page="pagination.perPage"

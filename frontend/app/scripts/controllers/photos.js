@@ -33,6 +33,25 @@ angular.module('restGalleryApp')
 
     $scope.pagination = Pagination;
   })
+  .filter('searchFilter', function () {
+    return function (input, query) {
+      var inputArray = [];
+      angular.forEach(input, function (el) {
+        inputArray.push(el);
+      });
+      if (query) {
+        inputArray = inputArray.filter(function (photo) {
+          for (var i = 0, len = photo.tags.length; i < len; i++) {
+            if (photo.tags[i].match(query)) {
+              return true
+            }
+          }
+          return false;
+        });
+      }
+      return inputArray;
+    }
+  })
   .filter('filterPagination', function (Pagination) {
     return function (input) {
       var inputArray = [];
@@ -45,6 +64,11 @@ angular.module('restGalleryApp')
       }
       return inputArray.slice(start, end);
     }
+  })
+  .filter('length', function () {
+    return function (input) {
+      return input.length;
+    };
   })
   .controller('PhotosEditCtrl', function ($scope, Photo, $location, backend_url, $http, $routeParams) {
     $scope.backend_url = backend_url;
