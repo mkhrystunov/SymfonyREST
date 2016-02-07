@@ -2,4 +2,4 @@ _assetic:
     resource: .
     type: assetic
 _app:
-    resource: /home/maks/projects/phpstorm_projects/rest_gallery/app/config/routing_dev.yml
+    resource: /home/maks/projects/phpstorm_projects/rest_gallery/backend/app/config/routing_dev.yml

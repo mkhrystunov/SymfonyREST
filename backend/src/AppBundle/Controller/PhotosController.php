@@ -19,20 +19,18 @@ class PhotosController extends Controller
      */
     public function getPhotosAction()
     {
-        $photos = $this->getDoctrine()->getRepository('AppBundle:Photo')->findAll();
-
-        return ['photos' => $photos];
+        return $this->getDoctrine()->getRepository('AppBundle:Photo')->findAll();
     }
 
     /**
      * @param Photo $photo
-     * @return array
+     * @return Photo
      * @View()
      * @ParamConverter("photo", class="AppBundle:Photo")
      */
     public function getPhotoAction(Photo $photo)
     {
-        return ['photo' => $photo];
+        return $photo;
     }
 
     /**
@@ -69,7 +67,7 @@ class PhotosController extends Controller
      *
      * @param Request $request
      * @ParamConverter("photo", class="AppBundle:Photo")
-     * @return JsonResponse|array
+     * @return JsonResponse|Photo
      * @View
      */
     public function putPhotosAction(Photo $photo, Request $request)
@@ -83,7 +81,7 @@ class PhotosController extends Controller
             $manager = $this->getDoctrine()->getManager();
             $manager->persist($photo);
             $manager->flush();
-            return ['photo' => $photo];
+            return $photo;
         }
         return new JsonResponse((string)$form->getErrors(), Response::HTTP_BAD_REQUEST);
     }

@@ -23,8 +23,8 @@ use Symfony\Component\Serializer\Exception\UnexpectedValueException;
 /**
  * Serializer serializes and deserializes data.
  *
- * objects are turned into arrays by normalizers
- * arrays are turned into various output formats by encoders
+ * objects are turned into arrays by normalizers.
+ * arrays are turned into various output formats by encoders.
  *
  * $serializer->serialize($obj, 'xml')
  * $serializer->decode($data, 'xml')
@@ -36,10 +36,25 @@ use Symfony\Component\Serializer\Exception\UnexpectedValueException;
  */
 class Serializer implements SerializerInterface, NormalizerInterface, DenormalizerInterface, EncoderInterface, DecoderInterface
 {
+    /**
+     * @var Encoder\ChainEncoder
+     */
     protected $encoder;
+    /**
+     * @var Encoder\ChainDecoder
+     */
     protected $decoder;
+    /**
+     * @var array
+     */
     protected $normalizers = array();
+    /**
+     * @var array
+     */
     protected $normalizerCache = array();
+    /**
+     * @var array
+     */
     protected $denormalizerCache = array();
 
     public function __construct(array $normalizers = array(), array $encoders = array())

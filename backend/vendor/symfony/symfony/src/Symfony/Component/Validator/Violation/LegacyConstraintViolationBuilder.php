@@ -12,7 +12,6 @@
 namespace Symfony\Component\Validator\Violation;
 
 use Symfony\Component\Validator\ExecutionContextInterface;
-use Symfony\Component\Validator\Util\PropertyPath;
 
 /**
  * Backwards-compatible implementation of {@link ConstraintViolationBuilderInterface}.
@@ -44,11 +43,6 @@ class LegacyConstraintViolationBuilder implements ConstraintViolationBuilderInte
     /**
      * @var mixed
      */
-    private $root;
-
-    /**
-     * @var mixed
-     */
     private $invalidValue;
 
     /**
@@ -71,7 +65,6 @@ class LegacyConstraintViolationBuilder implements ConstraintViolationBuilderInte
         $this->context = $context;
         $this->message = $message;
         $this->parameters = $parameters;
-        $this->root = $context->getRoot();
         $this->invalidValue = $context->getValue();
     }
 
@@ -141,6 +134,16 @@ class LegacyConstraintViolationBuilder implements ConstraintViolationBuilderInte
     public function setCode($code)
     {
         $this->code = $code;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setCause($cause)
+    {
+        // do nothing - we can't save the cause through the old API
 
         return $this;
     }

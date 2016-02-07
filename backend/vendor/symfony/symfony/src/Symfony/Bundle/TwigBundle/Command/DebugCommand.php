@@ -18,7 +18,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Lists twig functions, filters, globals and tests present in the current project
+ * Lists twig functions, filters, globals and tests present in the current project.
  *
  * @author Jordi Boggiano <j.boggiano@seld.be>
  */
@@ -27,7 +27,10 @@ class DebugCommand extends ContainerAwareCommand
     protected function configure()
     {
         $this
-            ->setName('twig:debug')
+            ->setName('debug:twig')
+            ->setAliases(array(
+                'twig:debug',
+            ))
             ->setDefinition(array(
                 new InputArgument('filter', InputArgument::OPTIONAL, 'Show details for all entries matching this filter'),
                 new InputOption('format', null, InputOption::VALUE_REQUIRED, 'Output format: text or json', 'text'),
@@ -108,7 +111,7 @@ EOF
         if ($type === 'functions' || $type === 'filters') {
             $args = array();
             $cb = $entity->getCallable();
-            if (is_null($cb)) {
+            if (null === $cb) {
                 return;
             }
             if (is_array($cb)) {

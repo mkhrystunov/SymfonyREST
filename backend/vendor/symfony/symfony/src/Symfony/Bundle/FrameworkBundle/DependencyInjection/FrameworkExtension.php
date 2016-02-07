@@ -57,21 +57,6 @@ class FrameworkExtension extends Extension
         // Property access is used by both the Form and the Validator component
         $loader->load('property_access.xml');
 
-        $loader->load('debug_prod.xml');
-
-        if ($container->getParameter('kernel.debug')) {
-            $loader->load('debug.xml');
-
-            $definition = $container->findDefinition('http_kernel');
-            $definition->replaceArgument(2, new Reference('debug.controller_resolver'));
-
-            // replace the regular event_dispatcher service with the debug one
-            $definition = $container->findDefinition('event_dispatcher');
-            $definition->setPublic(false);
-            $container->setDefinition('debug.event_dispatcher.parent', $definition);
-            $container->setAlias('event_dispatcher', 'debug.event_dispatcher');
-        }
-
         $configuration = $this->getConfiguration($configs, $container);
         $config = $this->processConfiguration($configuration, $configs);
 
@@ -121,6 +106,7 @@ class FrameworkExtension extends Extension
 
         $this->registerValidationConfiguration($config['validation'], $container, $loader);
         $this->registerEsiConfiguration($config['esi'], $container, $loader);
+        $this->registerSsiConfiguration($config['ssi'], $container, $loader);
         $this->registerFragmentsConfiguration($config['fragments'], $container, $loader);
         $this->registerProfilerConfiguration($config['profiler'], $container, $loader);
         $this->registerTranslatorConfiguration($config['translator'], $container);
@@ -131,12 +117,38 @@ class FrameworkExtension extends Extension
 
         $this->registerAnnotationsConfiguration($config['annotations'], $container, $loader);
 
+        $this->registerPropertyAccessConfiguration($config['property_access'], $container);
+
         if (isset($config['serializer']) && $config['serializer']['enabled']) {
             $loader->load('serializer.xml');
         }
 
+        $loader->load('debug_prod.xml');
+        $definition = $container->findDefinition('debug.debug_handlers_listener');
+
+        if ($container->hasParameter('templating.helper.code.file_link_format')) {
+            $definition->replaceArgument(5, '%templating.helper.code.file_link_format%');
+        }
+
+        if ($container->getParameter('kernel.debug')) {
+            $loader->load('debug.xml');
+
+            $definition = $container->findDefinition('http_kernel');
+            $definition->replaceArgument(2, new Reference('debug.controller_resolver'));
+
+            // replace the regular event_dispatcher service with the debug one
+            $definition = $container->findDefinition('event_dispatcher');
+            $definition->setPublic(false);
+            $container->setDefinition('debug.event_dispatcher.parent', $definition);
+            $container->setAlias('event_dispatcher', 'debug.event_dispatcher');
+        } else {
+            $definition->replaceArgument(2, E_COMPILE_ERROR | E_PARSE | E_ERROR | E_CORE_ERROR);
+        }
+
         $this->addClassesToCompile(array(
             'Symfony\\Component\\Config\\FileLocator',
+
+            'Symfony\\Component\\Debug\\ErrorHandler',
 
             'Symfony\\Component\\EventDispatcher\\Event',
             'Symfony\\Component\\EventDispatcher\\ContainerAwareEventDispatcher',
@@ -158,6 +170,14 @@ class FrameworkExtension extends Extension
             // Cannot be included because annotations will parse the big compiled class file
             // 'Symfony\\Bundle\\FrameworkBundle\\Controller\\Controller',
         ));
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getConfiguration(array $config, ContainerBuilder $container)
+    {
+        return new Configuration($container->getParameter('kernel.debug'));
     }
 
     /**
@@ -208,6 +228,22 @@ class FrameworkExtension extends Extension
     }
 
     /**
+     * Loads the SSI configuration.
+     *
+     * @param array            $config    An SSI configuration array
+     * @param ContainerBuilder $container A ContainerBuilder instance
+     * @param XmlFileLoader    $loader    An XmlFileLoader instance
+     */
+    private function registerSsiConfiguration(array $config, ContainerBuilder $container, XmlFileLoader $loader)
+    {
+        if (!$this->isConfigEnabled($container, $config)) {
+            return;
+        }
+
+        $loader->load('ssi.xml');
+    }
+
+    /**
      * Loads the fragments configuration.
      *
      * @param array            $config    A fragments configuration array
@@ -242,12 +278,12 @@ class FrameworkExtension extends Extension
             return;
         }
 
+        $loader->load('profiling.xml');
+        $loader->load('collectors.xml');
+
         if (true === $this->formConfigEnabled) {
             $loader->load('form_debug.xml');
         }
-
-        $loader->load('profiling.xml');
-        $loader->load('collectors.xml');
 
         $container->setParameter('profiler_listener.only_exceptions', $config['only_exceptions']);
         $container->setParameter('profiler_listener.only_master_requests', $config['only_master_requests']);
@@ -262,7 +298,7 @@ class FrameworkExtension extends Extension
             'memcached' => 'Symfony\Component\HttpKernel\Profiler\MemcachedProfilerStorage',
             'redis' => 'Symfony\Component\HttpKernel\Profiler\RedisProfilerStorage',
         );
-        list($class, ) = explode(':', $config['dsn'], 2);
+        list($class) = explode(':', $config['dsn'], 2);
         if (!isset($supported[$class])) {
             throw new \LogicException(sprintf('Driver "%s" is not supported for the profiler.', $class));
         }
@@ -395,7 +431,7 @@ class FrameworkExtension extends Extension
     /**
      * Loads the request configuration.
      *
-     * @param array            $config    A session configuration array
+     * @param array            $config    A request configuration array
      * @param ContainerBuilder $container A ContainerBuilder instance
      * @param XmlFileLoader    $loader    An XmlFileLoader instance
      */
@@ -463,19 +499,6 @@ class FrameworkExtension extends Extension
             new Reference('templating.asset.default_package'),
             $namedPackages,
         ));
-
-        // Apply request scope to assets helper if one or more packages are request-scoped
-        $requireRequestScope = array_reduce(
-            $namedPackages,
-            function ($v, Reference $ref) use ($container) {
-                return $v || 'request' === $container->getDefinition($ref)->getScope();
-            },
-            'request' === $defaultPackage->getScope()
-        );
-
-        if ($requireRequestScope) {
-            $container->getDefinition('templating.helper.assets')->setScope('request');
-        }
 
         if (!empty($config['loaders'])) {
             $loaders = array_map(function ($loader) { return new Reference($loader); }, $config['loaders']);
@@ -612,27 +635,29 @@ class FrameworkExtension extends Extension
         $translator = $container->findDefinition('translator.default');
         $translator->addMethodCall('setFallbackLocales', array($config['fallbacks']));
 
+        $container->setParameter('translator.logging', $config['logging']);
+
         // Discover translation directories
         $dirs = array();
         if (class_exists('Symfony\Component\Validator\Validator')) {
             $r = new \ReflectionClass('Symfony\Component\Validator\Validator');
 
-            $dirs[] = dirname($r->getFilename()).'/Resources/translations';
+            $dirs[] = dirname($r->getFileName()).'/Resources/translations';
         }
         if (class_exists('Symfony\Component\Form\Form')) {
             $r = new \ReflectionClass('Symfony\Component\Form\Form');
 
-            $dirs[] = dirname($r->getFilename()).'/Resources/translations';
+            $dirs[] = dirname($r->getFileName()).'/Resources/translations';
         }
         if (class_exists('Symfony\Component\Security\Core\Exception\AuthenticationException')) {
             $r = new \ReflectionClass('Symfony\Component\Security\Core\Exception\AuthenticationException');
 
-            $dirs[] = dirname($r->getFilename()).'/../Resources/translations';
+            $dirs[] = dirname($r->getFileName()).'/../Resources/translations';
         }
         $overridePath = $container->getParameter('kernel.root_dir').'/Resources/%s/translations';
         foreach ($container->getParameter('kernel.bundles') as $bundle => $class) {
             $reflection = new \ReflectionClass($class);
-            if (is_dir($dir = dirname($reflection->getFilename()).'/Resources/translations')) {
+            if (is_dir($dir = dirname($reflection->getFileName()).'/Resources/translations')) {
                 $dirs[] = $dir;
             }
             if (is_dir($dir = sprintf($overridePath, $bundle))) {
@@ -750,7 +775,7 @@ class FrameworkExtension extends Extension
 
         foreach ($container->getParameter('kernel.bundles') as $bundle) {
             $reflection = new \ReflectionClass($bundle);
-            if (is_file($file = dirname($reflection->getFilename()).'/Resources/config/validation.xml')) {
+            if (is_file($file = dirname($reflection->getFileName()).'/Resources/config/validation.xml')) {
                 $files[] = realpath($file);
                 $container->addResource(new FileResource($file));
             }
@@ -765,7 +790,7 @@ class FrameworkExtension extends Extension
 
         foreach ($container->getParameter('kernel.bundles') as $bundle) {
             $reflection = new \ReflectionClass($bundle);
-            if (is_file($file = dirname($reflection->getFilename()).'/Resources/config/validation.yml')) {
+            if (is_file($file = dirname($reflection->getFileName()).'/Resources/config/validation.yml')) {
                 $files[] = realpath($file);
                 $container->addResource(new FileResource($file));
             }
@@ -780,7 +805,7 @@ class FrameworkExtension extends Extension
 
         if ('file' === $config['cache']) {
             $cacheDir = $container->getParameterBag()->resolveValue($config['file_cache_dir']);
-            if (!is_dir($cacheDir) && false === @mkdir($cacheDir, 0777, true)) {
+            if (!is_dir($cacheDir) && false === @mkdir($cacheDir, 0777, true) && !is_dir($cacheDir)) {
                 throw new \RuntimeException(sprintf('Could not create cache directory "%s".', $cacheDir));
             }
 
@@ -798,6 +823,15 @@ class FrameworkExtension extends Extension
             ;
             $container->setAlias('annotation_reader', 'annotations.cached_reader');
         }
+    }
+
+    private function registerPropertyAccessConfiguration(array $config, ContainerBuilder $container)
+    {
+        $container
+            ->getDefinition('property_accessor')
+            ->replaceArgument(0, $config['magic_call'])
+            ->replaceArgument(1, $config['throw_exception_on_invalid_index'])
+        ;
     }
 
     /**

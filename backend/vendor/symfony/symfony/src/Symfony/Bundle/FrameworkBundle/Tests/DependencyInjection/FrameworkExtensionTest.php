@@ -34,6 +34,23 @@ abstract class FrameworkExtensionTest extends TestCase
         $this->assertEquals('%form.type_extension.csrf.field_name%', $def->getArgument(2));
     }
 
+    public function testPropertyAccessWithDefaultValue()
+    {
+        $container = $this->createContainerFromFile('full');
+
+        $def = $container->getDefinition('property_accessor');
+        $this->assertFalse($def->getArgument(0));
+        $this->assertFalse($def->getArgument(1));
+    }
+
+    public function testPropertyAccessWithOverriddenValues()
+    {
+        $container = $this->createContainerFromFile('property_accessor');
+        $def = $container->getDefinition('property_accessor');
+        $this->assertTrue($def->getArgument(0));
+        $this->assertTrue($def->getArgument(1));
+    }
+
     /**
      * @expectedException \LogicException
      * @expectedExceptionMessage CSRF protection needs sessions to be enabled.
@@ -169,8 +186,6 @@ abstract class FrameworkExtensionTest extends TestCase
 
         $this->assertTrue($container->hasDefinition('templating.name_parser'), '->registerTemplatingConfiguration() loads templating.xml');
 
-        $this->assertEquals('request', $container->getDefinition('templating.helper.assets')->getScope(), '->registerTemplatingConfiguration() sets request scope on assets helper if one or more packages are request-scoped');
-
         // default package should have one HTTP base URL and path package SSL URL
         $this->assertTrue($container->hasDefinition('templating.asset.default_package.http'));
         $package = $container->getDefinition('templating.asset.default_package.http');
@@ -246,7 +261,7 @@ abstract class FrameworkExtensionTest extends TestCase
         $this->assertEquals(array('fr'), $calls[0][1][0]);
     }
 
-    public function testTranslatorMultipleFullback()
+    public function testTranslatorMultipleFallbacks()
     {
         $container = $this->createContainerFromFile('translator_fallbacks');
 
@@ -344,7 +359,7 @@ abstract class FrameworkExtensionTest extends TestCase
 
     public function testValidationPaths()
     {
-        require_once __DIR__."/Fixtures/TestBundle/TestBundle.php";
+        require_once __DIR__.'/Fixtures/TestBundle/TestBundle.php';
 
         $container = $this->createContainerFromFile('validation_annotations', array(
             'kernel.bundles' => array('TestBundle' => 'Symfony\Bundle\FrameworkBundle\Tests\TestBundle'),
@@ -493,6 +508,25 @@ abstract class FrameworkExtensionTest extends TestCase
 
         $this->assertTrue($container->getParameter('form.type_extension.csrf.enabled'));
         $this->assertEquals('_custom_form', $container->getParameter('form.type_extension.csrf.field_name'));
+    }
+
+    public function testStopwatchEnabledWithDebugModeEnabled()
+    {
+        $container = $this->createContainerFromFile('default_config', array(
+            'kernel.container_class' => 'foo',
+            'kernel.debug' => true,
+        ));
+
+        $this->assertTrue($container->has('debug.stopwatch'));
+    }
+
+    public function testStopwatchEnabledWithDebugModeDisabled()
+    {
+        $container = $this->createContainerFromFile('default_config', array(
+            'kernel.container_class' => 'foo',
+        ));
+
+        $this->assertTrue($container->has('debug.stopwatch'));
     }
 
     protected function createContainer(array $data = array())

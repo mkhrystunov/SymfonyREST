@@ -1,6 +1,21 @@
 CHANGELOG
 =========
 
+2.6.0
+-----
+
+ * [BC BREAK] `FileValidator` disallow empty files
+ * [BC BREAK] `UserPasswordValidator` source message change
+ * [BC BREAK] added internal `ExecutionContextInterface::setConstraint()`
+ * added `ConstraintViolation::getConstraint()`
+ * [BC BREAK] The `ExpressionValidator` will now evaluate the Expression even when the property value is null or an empty string
+ * deprecated `ClassMetadata::hasMemberMetadatas()`
+ * deprecated `ClassMetadata::getMemberMetadatas()`
+ * deprecated `ClassMetadata::addMemberMetadata()`
+ * [BC BREAK] added `Mapping\MetadataInterface::getConstraints()`
+ * added generic "payload" option to all constraints for attaching domain-specific data
+ * [BC BREAK] added `ConstraintViolationBuilderInterface::setCause()`
+
 2.5.0
 -----
 
@@ -66,6 +81,11 @@ CHANGELOG
 
  * added a constraint the uses the expression language
  * added `minRatio`, `maxRatio`, `allowSquare`, `allowLandscape`, and `allowPortrait` to Image validator
+
+2.3.29
+------
+
+ * fixed compatibility with PHP7 and up by introducing new constraints (IsNull, IsTrue, IsFalse) and related validators (IsNullValidator, IsTrueValidator, IsFalseValidator)
 
 2.3.0
 -----

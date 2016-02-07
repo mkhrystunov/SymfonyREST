@@ -150,7 +150,9 @@ ini_set('session.cookie_lifetime', $lifetime);
 if ($destroy) {
 $this->metadataBag->stampNew();
 }
-return session_regenerate_id($destroy);
+$isRegenerated = session_regenerate_id($destroy);
+$this->loadSession();
+return $isRegenerated;
 }
 public function save()
 {
@@ -565,9 +567,10 @@ return $this->getBag($this->flashName);
 namespace Symfony\Bundle\FrameworkBundle\Templating
 {
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpFoundation\Session\Session;
-use Symfony\Component\Security\Core\SecurityContext;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\Session;
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\SecurityContext;
 class GlobalVariables
 {
 protected $container;
@@ -583,10 +586,11 @@ return $this->container->get('security.context');
 }
 public function getUser()
 {
-if (!$security = $this->getSecurity()) {
+if (!$this->container->has('security.token_storage')) {
 return;
 }
-if (!$token = $security->getToken()) {
+$tokenStorage = $this->container->get('security.token_storage');
+if (!$token = $tokenStorage->getToken()) {
 return;
 }
 $user = $token->getUser();
@@ -941,7 +945,7 @@ if ($hostTokens) {
 $routeHost ='';
 foreach ($hostTokens as $token) {
 if ('variable'=== $token[0]) {
-if (null !== $this->strictRequirements && !preg_match('#^'.$token[2].'$#', $mergedParams[$token[3]])) {
+if (null !== $this->strictRequirements && !preg_match('#^'.$token[2].'$#i', $mergedParams[$token[3]])) {
 $message = sprintf('Parameter "%s" for route "%s" must match "%s" ("%s" given) to generate a corresponding URL.', $token[3], $name, $token[2], $mergedParams[$token[3]]);
 if ($this->strictRequirements) {
 throw new InvalidParameterException($message);
@@ -981,7 +985,7 @@ $url = $schemeAuthority.$this->context->getBaseUrl().$url;
 }
 $extra = array_diff_key($parameters, $variables, $defaults);
 if ($extra && $query = http_build_query($extra,'','&')) {
-$url .='?'.$query;
+$url .='?'.strtr($query, array('%2F'=>'/'));
 }
 return $url;
 }
@@ -1044,6 +1048,7 @@ $this->setScheme($request->getScheme());
 $this->setHttpPort($request->isSecure() ? $this->httpPort : $request->getPort());
 $this->setHttpsPort($request->isSecure() ? $request->getPort() : $this->httpsPort);
 $this->setQueryString($request->server->get('QUERY_STRING',''));
+return $this;
 }
 public function getBaseUrl()
 {
@@ -1052,6 +1057,7 @@ return $this->baseUrl;
 public function setBaseUrl($baseUrl)
 {
 $this->baseUrl = $baseUrl;
+return $this;
 }
 public function getPathInfo()
 {
@@ -1060,6 +1066,7 @@ return $this->pathInfo;
 public function setPathInfo($pathInfo)
 {
 $this->pathInfo = $pathInfo;
+return $this;
 }
 public function getMethod()
 {
@@ -1068,6 +1075,7 @@ return $this->method;
 public function setMethod($method)
 {
 $this->method = strtoupper($method);
+return $this;
 }
 public function getHost()
 {
@@ -1076,6 +1084,7 @@ return $this->host;
 public function setHost($host)
 {
 $this->host = strtolower($host);
+return $this;
 }
 public function getScheme()
 {
@@ -1084,6 +1093,7 @@ return $this->scheme;
 public function setScheme($scheme)
 {
 $this->scheme = strtolower($scheme);
+return $this;
 }
 public function getHttpPort()
 {
@@ -1092,6 +1102,7 @@ return $this->httpPort;
 public function setHttpPort($httpPort)
 {
 $this->httpPort = (int) $httpPort;
+return $this;
 }
 public function getHttpsPort()
 {
@@ -1100,6 +1111,7 @@ return $this->httpsPort;
 public function setHttpsPort($httpsPort)
 {
 $this->httpsPort = (int) $httpsPort;
+return $this;
 }
 public function getQueryString()
 {
@@ -1108,6 +1120,7 @@ return $this->queryString;
 public function setQueryString($queryString)
 {
 $this->queryString = (string) $queryString;
+return $this;
 }
 public function getParameters()
 {
@@ -1129,6 +1142,7 @@ return array_key_exists($name, $this->parameters);
 public function setParameter($name, $parameter)
 {
 $this->parameters[$name] = $parameter;
+return $this;
 }
 }
 }
@@ -1173,6 +1187,7 @@ use Symfony\Component\Routing\Matcher\RequestMatcherInterface;
 use Symfony\Component\Routing\Matcher\UrlMatcherInterface;
 use Symfony\Component\Routing\Matcher\Dumper\MatcherDumperInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\ExpressionLanguage\ExpressionFunctionProviderInterface;
 class Router implements RouterInterface, RequestMatcherInterface
 {
 protected $matcher;
@@ -1183,6 +1198,7 @@ protected $collection;
 protected $resource;
 protected $options = array();
 protected $logger;
+private $expressionLanguageProviders = array();
 public function __construct(LoaderInterface $loader, $resource, array $options = array(), RequestContext $context = null, LoggerInterface $logger = null)
 {
 $this->loader = $loader;
@@ -1264,12 +1280,23 @@ if (null !== $this->matcher) {
 return $this->matcher;
 }
 if (null === $this->options['cache_dir'] || null === $this->options['matcher_cache_class']) {
-return $this->matcher = new $this->options['matcher_class']($this->getRouteCollection(), $this->context);
+$this->matcher = new $this->options['matcher_class']($this->getRouteCollection(), $this->context);
+if (method_exists($this->matcher,'addExpressionLanguageProvider')) {
+foreach ($this->expressionLanguageProviders as $provider) {
+$this->matcher->addExpressionLanguageProvider($provider);
+}
+}
+return $this->matcher;
 }
 $class = $this->options['matcher_cache_class'];
 $cache = new ConfigCache($this->options['cache_dir'].'/'.$class.'.php', $this->options['debug']);
 if (!$cache->isFresh()) {
 $dumper = $this->getMatcherDumperInstance();
+if (method_exists($dumper,'addExpressionLanguageProvider')) {
+foreach ($this->expressionLanguageProviders as $provider) {
+$dumper->addExpressionLanguageProvider($provider);
+}
+}
 $options = array('class'=> $class,'base_class'=> $this->options['matcher_base_class'],
 );
 $cache->write($dumper->dump($options), $this->getRouteCollection()->getResources());
@@ -1301,6 +1328,10 @@ $this->generator->setStrictRequirements($this->options['strict_requirements']);
 }
 return $this->generator;
 }
+public function addExpressionLanguageProvider(ExpressionFunctionProviderInterface $provider)
+{
+$this->expressionLanguageProviders[] = $provider;
+}
 protected function getGeneratorDumperInstance()
 {
 return new $this->options['generator_dumper_class']($this->getRouteCollection());
@@ -1327,6 +1358,7 @@ use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Symfony\Component\ExpressionLanguage\ExpressionFunctionProviderInterface;
 class UrlMatcher implements UrlMatcherInterface, RequestMatcherInterface
 {
 const REQUIREMENT_MATCH = 0;
@@ -1337,6 +1369,7 @@ protected $allow = array();
 protected $routes;
 protected $request;
 protected $expressionLanguage;
+protected $expressionLanguageProviders = array();
 public function __construct(RouteCollection $routes, RequestContext $context)
 {
 $this->routes = $routes;
@@ -1358,7 +1391,7 @@ return $ret;
 }
 throw 0 < count($this->allow)
 ? new MethodNotAllowedException(array_unique(array_map('strtoupper', $this->allow)))
-: new ResourceNotFoundException();
+: new ResourceNotFoundException(sprintf('No routes found for "%s".', $pathinfo));
 }
 public function matchRequest(Request $request)
 {
@@ -1366,6 +1399,10 @@ $this->request = $request;
 $ret = $this->match($request->getPathInfo());
 $this->request = null;
 return $ret;
+}
+public function addExpressionLanguageProvider(ExpressionFunctionProviderInterface $provider)
+{
+$this->expressionLanguageProviders[] = $provider;
 }
 protected function matchCollection($pathinfo, RouteCollection $routes)
 {
@@ -1429,7 +1466,7 @@ if (null === $this->expressionLanguage) {
 if (!class_exists('Symfony\Component\ExpressionLanguage\ExpressionLanguage')) {
 throw new \RuntimeException('Unable to use expressions as the Symfony ExpressionLanguage component is not installed.');
 }
-$this->expressionLanguage = new ExpressionLanguage();
+$this->expressionLanguage = new ExpressionLanguage(null, $this->expressionLanguageProviders);
 }
 return $this->expressionLanguage;
 }
@@ -1590,14 +1627,13 @@ throw new \InvalidArgumentException(sprintf('The file "%s" does not exist.', $na
 }
 return $name;
 }
+$paths = $this->paths;
+if (null !== $currentPath) {
+array_unshift($paths, $currentPath);
+}
+$paths = array_unique($paths);
 $filepaths = array();
-if (null !== $currentPath && file_exists($file = $currentPath.DIRECTORY_SEPARATOR.$name)) {
-if (true === $first) {
-return $file;
-}
-$filepaths[] = $file;
-}
-foreach ($this->paths as $path) {
+foreach ($paths as $path) {
 if (file_exists($file = $path.DIRECTORY_SEPARATOR.$name)) {
 if (true === $first) {
 return $file;
@@ -1606,9 +1642,9 @@ $filepaths[] = $file;
 }
 }
 if (!$filepaths) {
-throw new \InvalidArgumentException(sprintf('The file "%s" does not exist (in: %s%s).', $name, null !== $currentPath ? $currentPath.', ':'', implode(', ', $this->paths)));
+throw new \InvalidArgumentException(sprintf('The file "%s" does not exist (in: %s).', $name, implode(', ', $paths)));
 }
-return array_values(array_unique($filepaths));
+return $filepaths;
 }
 private function isAbsolutePath($file)
 {
@@ -1696,7 +1732,7 @@ $this->sortListeners($eventName);
 }
 return $this->sorted[$eventName];
 }
-foreach (array_keys($this->listeners) as $eventName) {
+foreach ($this->listeners as $eventName => $eventListeners) {
 if (!isset($this->sorted[$eventName])) {
 $this->sortListeners($eventName);
 }
@@ -1790,12 +1826,11 @@ $this->listenerIds[$eventName][] = array($callback[0], $callback[1], $priority);
 public function removeListener($eventName, $listener)
 {
 $this->lazyLoad($eventName);
-if (isset($this->listeners[$eventName])) {
-foreach ($this->listeners[$eventName] as $key => $l) {
+if (isset($this->listenerIds[$eventName])) {
 foreach ($this->listenerIds[$eventName] as $i => $args) {
 list($serviceId, $method, $priority) = $args;
-if ($key === $serviceId.'.'.$method) {
-if ($listener === array($l, $method)) {
+$key = $serviceId.'.'.$method;
+if (isset($this->listeners[$eventName][$key]) && $listener === array($this->listeners[$eventName][$key], $method)) {
 unset($this->listeners[$eventName][$key]);
 if (empty($this->listeners[$eventName])) {
 unset($this->listeners[$eventName]);
@@ -1803,8 +1838,6 @@ unset($this->listeners[$eventName]);
 unset($this->listenerIds[$eventName][$i]);
 if (empty($this->listenerIds[$eventName])) {
 unset($this->listenerIds[$eventName]);
-}
-}
 }
 }
 }
@@ -1824,7 +1857,7 @@ return parent::hasListeners($eventName);
 public function getListeners($eventName = null)
 {
 if (null === $eventName) {
-foreach (array_keys($this->listenerIds) as $serviceEventName) {
+foreach ($this->listenerIds as $serviceEventName => $args) {
 $this->lazyLoad($serviceEventName);
 }
 } else {
@@ -1974,8 +2007,7 @@ if (null !== $this->logger) {
 $this->logger->info(sprintf('Matched route "%s" (parameters: %s)', $parameters['_route'], $this->parametersToString($parameters)));
 }
 $request->attributes->add($parameters);
-unset($parameters['_route']);
-unset($parameters['_controller']);
+unset($parameters['_route'], $parameters['_controller']);
 $request->attributes->set('_route_params', $parameters);
 } catch (ResourceNotFoundException $e) {
 $message = sprintf('No route found for "%s %s"', $request->getMethod(), $request->getPathInfo());
@@ -2044,7 +2076,7 @@ throw new \InvalidArgumentException(sprintf('Controller "%s" for URI "%s" is not
 }
 if (false === strpos($controller,':')) {
 if (method_exists($controller,'__invoke')) {
-return new $controller();
+return $this->instantiateController($controller);
 } elseif (function_exists($controller)) {
 return $controller;
 }
@@ -2100,7 +2132,11 @@ list($class, $method) = explode('::', $controller, 2);
 if (!class_exists($class)) {
 throw new \InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
 }
-return array(new $class(), $method);
+return array($this->instantiateController($class), $method);
+}
+protected function instantiateController($class)
+{
+return new $class();
 }
 }
 }
@@ -2171,7 +2207,7 @@ $a = array();
 foreach ($var as $k => $v) {
 $a[] = sprintf('%s => %s', $k, $this->varToString($v));
 }
-return sprintf("Array(%s)", implode(', ', $a));
+return sprintf('Array(%s)', implode(', ', $a));
 }
 if (is_resource($var)) {
 return sprintf('Resource(%s)', get_resource_type($var));
@@ -2328,19 +2364,32 @@ $this->kernel = $kernel;
 }
 public function parse($controller)
 {
+$originalController = $controller;
 if (3 !== count($parts = explode(':', $controller))) {
 throw new \InvalidArgumentException(sprintf('The "%s" controller is not a valid "a:b:c" controller string.', $controller));
 }
 list($bundle, $controller, $action) = $parts;
 $controller = str_replace('/','\\', $controller);
 $bundles = array();
-foreach ($this->kernel->getBundle($bundle, false) as $b) {
+try {
+$allBundles = $this->kernel->getBundle($bundle, false);
+} catch (\InvalidArgumentException $e) {
+$message = sprintf('The "%s" (from the _controller value "%s") does not exist or is not enabled in your kernel!',
+$bundle,
+$originalController
+);
+if ($alternative = $this->findAlternative($bundle)) {
+$message .= sprintf(' Did you mean "%s:%s:%s"?', $alternative, $controller, $action);
+}
+throw new \InvalidArgumentException($message, 0, $e);
+}
+foreach ($allBundles as $b) {
 $try = $b->getNamespace().'\\Controller\\'.$controller.'Controller';
 if (class_exists($try)) {
 return $try.'::'.$action.'Action';
 }
 $bundles[] = $b->getName();
-$msg = sprintf('Unable to find controller "%s:%s" - class "%s" does not exist.', $bundle, $controller, $try);
+$msg = sprintf('The _controller value "%s:%s:%s" maps to a "%s" class, but this class was not found. Create this class or check the spelling of the class and its namespace.', $bundle, $controller, $action, $try);
 }
 if (count($bundles) > 1) {
 $msg = sprintf('Unable to find controller "%s:%s" in bundles %s.', $bundle, $controller, implode(', ', $bundles));
@@ -2362,6 +2411,24 @@ continue;
 return sprintf('%s:%s:%s', $name, $controllerName, $actionName);
 }
 throw new \InvalidArgumentException(sprintf('Unable to find a bundle that defines controller "%s".', $controller));
+}
+private function findAlternative($nonExistentBundleName)
+{
+$bundleNames = array_map(function ($b) {
+return $b->getName();
+}, $this->kernel->getBundles());
+$alternative = null;
+$shortest = null;
+foreach ($bundleNames as $bundleName) {
+if (false !== strpos($bundleName, $nonExistentBundleName)) {
+return $bundleName;
+}
+$lev = levenshtein($nonExistentBundleName, $bundleName);
+if ($lev <= strlen($nonExistentBundleName) / 3 && ($alternative === null || $lev < $shortest)) {
+$alternative = $bundleName;
+}
+}
+return $alternative;
 }
 }
 }
@@ -2390,6 +2457,8 @@ $controller = $this->parser->parse($controller);
 } elseif (1 == $count) {
 list($service, $method) = explode(':', $controller, 2);
 return array($this->container->get($service), $method);
+} elseif ($this->container->has($controller) && method_exists($service = $this->container->get($controller),'__invoke')) {
+return $service;
 } else {
 throw new \LogicException(sprintf('Unable to parse the controller name "%s".', $controller));
 }
@@ -2398,7 +2467,7 @@ list($class, $method) = explode('::', $controller, 2);
 if (!class_exists($class)) {
 throw new \InvalidArgumentException(sprintf('Class "%s" does not exist.', $class));
 }
-$controller = new $class();
+$controller = $this->instantiateController($class);
 if ($controller instanceof ContainerAwareInterface) {
 $controller->setContainer($this->container);
 }
@@ -2458,57 +2527,73 @@ KernelEvents::FINISH_REQUEST =>'onKernelFinishRequest',
 }
 }
 }
-namespace Symfony\Component\Security\Core
+namespace Symfony\Component\Security\Core\Authentication\Token\Storage
 {
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
-interface SecurityContextInterface
+interface TokenStorageInterface
 {
-const ACCESS_DENIED_ERROR ='_security.403_error';
-const AUTHENTICATION_ERROR ='_security.last_error';
-const LAST_USERNAME ='_security.last_username';
 public function getToken();
 public function setToken(TokenInterface $token = null);
+}
+}
+namespace Symfony\Component\Security\Core\Authorization
+{
+interface AuthorizationCheckerInterface
+{
 public function isGranted($attributes, $object = null);
 }
 }
 namespace Symfony\Component\Security\Core
 {
-use Symfony\Component\Security\Core\Exception\AuthenticationCredentialsNotFoundException;
-use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
+interface SecurityContextInterface extends TokenStorageInterface, AuthorizationCheckerInterface
+{
+const ACCESS_DENIED_ERROR = Security::ACCESS_DENIED_ERROR;
+const AUTHENTICATION_ERROR = Security::AUTHENTICATION_ERROR;
+const LAST_USERNAME = Security::LAST_USERNAME;
+}
+}
+namespace Symfony\Component\Security\Core
+{
 use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+use Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface;
+use Symfony\Component\Security\Core\Authorization\AuthorizationChecker;
+use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
 class SecurityContext implements SecurityContextInterface
 {
-private $token;
-private $accessDecisionManager;
-private $authenticationManager;
-private $alwaysAuthenticate;
-public function __construct(AuthenticationManagerInterface $authenticationManager, AccessDecisionManagerInterface $accessDecisionManager, $alwaysAuthenticate = false)
+private $tokenStorage;
+private $authorizationChecker;
+public function __construct($tokenStorage, $authorizationChecker, $alwaysAuthenticate = false)
 {
-$this->authenticationManager = $authenticationManager;
-$this->accessDecisionManager = $accessDecisionManager;
-$this->alwaysAuthenticate = $alwaysAuthenticate;
+$oldSignature = $tokenStorage instanceof AuthenticationManagerInterface && $authorizationChecker instanceof AccessDecisionManagerInterface;
+$newSignature = $tokenStorage instanceof TokenStorageInterface && $authorizationChecker instanceof AuthorizationCheckerInterface;
+if (!$oldSignature && !$newSignature) {
+throw new \BadMethodCallException('Unable to construct SecurityContext, please provide the correct arguments');
 }
-final public function isGranted($attributes, $object = null)
-{
-if (null === $this->token) {
-throw new AuthenticationCredentialsNotFoundException('The security context contains no authentication token. One possible reason may be that there is no firewall configured for this URL.');
+if ($oldSignature) {
+$authenticationManager = $tokenStorage;
+$accessDecisionManager = $authorizationChecker;
+$tokenStorage = new TokenStorage();
+$authorizationChecker = new AuthorizationChecker($tokenStorage, $authenticationManager, $accessDecisionManager, $alwaysAuthenticate);
 }
-if ($this->alwaysAuthenticate || !$this->token->isAuthenticated()) {
-$this->token = $this->authenticationManager->authenticate($this->token);
-}
-if (!is_array($attributes)) {
-$attributes = array($attributes);
-}
-return $this->accessDecisionManager->decide($this->token, $attributes, $object);
+$this->tokenStorage = $tokenStorage;
+$this->authorizationChecker = $authorizationChecker;
 }
 public function getToken()
 {
-return $this->token;
+return $this->tokenStorage->getToken();
 }
 public function setToken(TokenInterface $token = null)
 {
-$this->token = $token;
+return $this->tokenStorage->setToken($token);
+}
+public function isGranted($attributes, $object = null)
+{
+return $this->authorizationChecker->isGranted($attributes, $object);
 }
 }
 }
@@ -2597,6 +2682,22 @@ $this->eventDispatcher->dispatch(AuthenticationEvents::AUTHENTICATION_FAILURE, n
 }
 $lastException->setToken($token);
 throw $lastException;
+}
+}
+}
+namespace Symfony\Component\Security\Core\Authentication\Token\Storage
+{
+use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
+class TokenStorage implements TokenStorageInterface
+{
+private $token;
+public function getToken()
+{
+return $this->token;
+}
+public function setToken(TokenInterface $token = null)
+{
+$this->token = $token;
 }
 }
 }
@@ -2733,6 +2834,39 @@ return $this->allowIfAllAbstainDecisions;
 }
 }
 }
+namespace Symfony\Component\Security\Core\Authorization
+{
+use Symfony\Component\Security\Core\Authentication\AuthenticationManagerInterface;
+use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Exception\AuthenticationCredentialsNotFoundException;
+class AuthorizationChecker implements AuthorizationCheckerInterface
+{
+private $tokenStorage;
+private $accessDecisionManager;
+private $authenticationManager;
+private $alwaysAuthenticate;
+public function __construct(TokenStorageInterface $tokenStorage, AuthenticationManagerInterface $authenticationManager, AccessDecisionManagerInterface $accessDecisionManager, $alwaysAuthenticate = false)
+{
+$this->tokenStorage = $tokenStorage;
+$this->authenticationManager = $authenticationManager;
+$this->accessDecisionManager = $accessDecisionManager;
+$this->alwaysAuthenticate = $alwaysAuthenticate;
+}
+final public function isGranted($attributes, $object = null)
+{
+if (null === ($token = $this->tokenStorage->getToken())) {
+throw new AuthenticationCredentialsNotFoundException('The token storage contains no authentication token. One possible reason may be that there is no firewall configured for this URL.');
+}
+if ($this->alwaysAuthenticate || !$token->isAuthenticated()) {
+$this->tokenStorage->setToken($token = $this->authenticationManager->authenticate($token));
+}
+if (!is_array($attributes)) {
+$attributes = array($attributes);
+}
+return $this->accessDecisionManager->decide($token, $attributes, $object);
+}
+}
+}
 namespace Symfony\Component\Security\Core\Authorization\Voter
 {
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
@@ -2813,15 +2947,21 @@ private $host;
 private $methods = array();
 private $ips = array();
 private $attributes = array();
-public function __construct($path = null, $host = null, $methods = null, $ips = null, array $attributes = array())
+private $schemes = array();
+public function __construct($path = null, $host = null, $methods = null, $ips = null, array $attributes = array(), $schemes = null)
 {
 $this->matchPath($path);
 $this->matchHost($host);
 $this->matchMethod($methods);
 $this->matchIps($ips);
+$this->matchScheme($schemes);
 foreach ($attributes as $k => $v) {
 $this->matchAttribute($k, $v);
 }
+}
+public function matchScheme($scheme)
+{
+$this->schemes = array_map('strtolower', (array) $scheme);
 }
 public function matchHost($regexp)
 {
@@ -2849,6 +2989,9 @@ $this->attributes[$key] = $regexp;
 }
 public function matches(Request $request)
 {
+if ($this->schemes && !in_array($request->getScheme(), $this->schemes)) {
+return false;
+}
 if ($this->methods && !in_array($request->getMethod(), $this->methods)) {
 return false;
 }

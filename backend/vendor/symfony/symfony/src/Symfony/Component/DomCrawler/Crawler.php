@@ -45,9 +45,10 @@ class Crawler extends \SplObjectStorage
     /**
      * Constructor.
      *
-     * @param mixed  $node A Node to use as the base for the crawling
+     * @param mixed  $node       A Node to use as the base for the crawling
      * @param string $currentUri The current URI
-     * @param string $baseHref The base href value
+     * @param string $baseHref   The base href value
+     *
      * @api
      */
     public function __construct($node = null, $currentUri = null, $baseHref = null)
@@ -350,6 +351,19 @@ class Crawler extends \SplObjectStorage
     }
 
     /**
+     * Slices the list of nodes by $offset and $length.
+     *
+     * @param int $offset
+     * @param int $length
+     *
+     * @return Crawler A Crawler instance with the sliced nodes
+     */
+    public function slice($offset = 0, $length = -1)
+    {
+        return new static(iterator_to_array(new \LimitIterator($this, $offset, $length)), $this->uri);
+    }
+
+    /**
      * Reduces the list of nodes by calling an anonymous function.
      *
      * To remove a node from the list, the anonymous function must return false.
@@ -517,6 +531,22 @@ class Crawler extends \SplObjectStorage
         $node = $this->getNode(0);
 
         return $node->hasAttribute($attribute) ? $node->getAttribute($attribute) : null;
+    }
+
+    /**
+     * Returns the node name of the first node of the list.
+     *
+     * @return string The node name
+     *
+     * @throws \InvalidArgumentException When current node is empty
+     */
+    public function nodeName()
+    {
+        if (!count($this)) {
+            throw new \InvalidArgumentException('The current node list is empty.');
+        }
+
+        return $this->getNode(0)->nodeName;
     }
 
     /**
@@ -817,7 +847,7 @@ class Crawler extends \SplObjectStorage
             }
         }
 
-        return sprintf("concat(%s)", implode($parts, ', '));
+        return sprintf('concat(%s)', implode($parts, ', '));
     }
 
     /**
@@ -997,7 +1027,7 @@ class Crawler extends \SplObjectStorage
      */
     private function findNamespacePrefixes($xpath)
     {
-        if (preg_match_all('/(?P<prefix>[a-z_][a-z_0-9\-\.]*):[^"\/]/i', $xpath, $matches)) {
+        if (preg_match_all('/(?P<prefix>[a-z_][a-z_0-9\-\.]*):[^"\/:]/i', $xpath, $matches)) {
             return array_unique($matches['prefix']);
         }
 

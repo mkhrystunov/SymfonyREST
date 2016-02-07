@@ -37,6 +37,7 @@ class PhotoType extends AbstractType
         $resolver->setDefaults([
             'data_class' => 'AppBundle\Entity\Photo',
             'csrf_protection' => false,
+            'allow_extra_fields' => true,
         ]);
     }
 
@@ -45,6 +46,6 @@ class PhotoType extends AbstractType
      */
     public function getName()
     {
-        return 'photo';
+        return '';
     }
 }

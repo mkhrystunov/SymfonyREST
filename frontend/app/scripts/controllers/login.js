@@ -8,32 +8,15 @@
  * Controller of the restGalleryApp
  */
 angular.module('restGalleryApp')
-  .controller('LoginCtrl', function ($scope, OAuth) {
-    var vm = this;
-
-    vm.login = login;
-
-    (function initController() {
-      // reset login status
-      OAuth.revokeToken();
-    })();
-
-    function login() {
-      vm.dataLoading = true;
+  .controller('LoginCtrl', function ($scope, OAuth, $location) {
+    $scope.logIn = function () {
+      $scope.dataLoading = true;
       OAuth.getAccessToken({
-        username: vm.username,
-        password: vm.password
-      }).then(function (response) {
-        console.log(response);
+        username: $scope.username,
+        password: $scope.password
+      }).then(function () {
+        $scope.dataLoading = false;
+        $location.path('/');
       });
-      //AuthenticationService.Login(vm.username, vm.password, function (response) {
-      //  if (response.success) {
-      //    AuthenticationService.SetCredentials(vm.username, vm.password);
-      //    $location.path('/');
-      //  } else {
-      //    FlashService.Error(response.message);
-      //    vm.dataLoading = false;
-      //  }
-      //});
-    }
+    };
   });

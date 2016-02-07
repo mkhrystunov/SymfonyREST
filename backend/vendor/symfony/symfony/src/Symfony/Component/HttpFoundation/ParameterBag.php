@@ -113,7 +113,7 @@ class ParameterBag implements \IteratorAggregate, \Countable
 
         $value = $this->parameters[$root];
         $currentKey = null;
-        for ($i = $pos, $c = strlen($path); $i < $c; $i++) {
+        for ($i = $pos, $c = strlen($path); $i < $c; ++$i) {
             $char = $path[$i];
 
             if ('[' === $char) {
@@ -251,6 +251,20 @@ class ParameterBag implements \IteratorAggregate, \Countable
     public function getInt($key, $default = 0, $deep = false)
     {
         return (int) $this->get($key, $default, $deep);
+    }
+
+    /**
+     * Returns the parameter value converted to boolean.
+     *
+     * @param string $key     The parameter key
+     * @param mixed  $default The default value if the parameter key does not exist
+     * @param bool   $deep    If true, a path like foo[bar] will find deeper items
+     *
+     * @return bool The filtered value
+     */
+    public function getBoolean($key, $default = false, $deep = false)
+    {
+        return $this->filter($key, $default, $deep, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

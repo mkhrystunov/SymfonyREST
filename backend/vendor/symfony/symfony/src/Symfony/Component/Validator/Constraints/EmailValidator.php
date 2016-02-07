@@ -24,8 +24,6 @@ use Symfony\Component\Validator\Exception\UnexpectedTypeException;
 class EmailValidator extends ConstraintValidator
 {
     /**
-     * isStrict
-     *
      * @var bool
      */
     private $isStrict;
@@ -68,13 +66,15 @@ class EmailValidator extends ConstraintValidator
             if (!$strictValidator->isValid($value, false, true)) {
                 $this->buildViolation($constraint->message)
                     ->setParameter('{{ value }}', $this->formatValue($value))
+                    ->setCode(Email::INVALID_FORMAT_ERROR)
                     ->addViolation();
 
                 return;
             }
-        } elseif (!preg_match('/.+\@.+\..+/', $value)) {
+        } elseif (!preg_match('/^.+\@\S+\.\S+$/', $value)) {
             $this->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
+                ->setCode(Email::INVALID_FORMAT_ERROR)
                 ->addViolation();
 
             return;
@@ -87,6 +87,7 @@ class EmailValidator extends ConstraintValidator
             if (!$this->checkMX($host)) {
                 $this->buildViolation($constraint->message)
                     ->setParameter('{{ value }}', $this->formatValue($value))
+                    ->setCode(Email::MX_CHECK_FAILED_ERROR)
                     ->addViolation();
             }
 
@@ -96,6 +97,7 @@ class EmailValidator extends ConstraintValidator
         if ($constraint->checkHost && !$this->checkHost($host)) {
             $this->buildViolation($constraint->message)
                 ->setParameter('{{ value }}', $this->formatValue($value))
+                ->setCode(Email::HOST_CHECK_FAILED_ERROR)
                 ->addViolation();
         }
     }
@@ -121,6 +123,6 @@ class EmailValidator extends ConstraintValidator
      */
     private function checkHost($host)
     {
-        return $this->checkMX($host) || (checkdnsrr($host, "A") || checkdnsrr($host, "AAAA"));
+        return $this->checkMX($host) || (checkdnsrr($host, 'A') || checkdnsrr($host, 'AAAA'));
     }
 }

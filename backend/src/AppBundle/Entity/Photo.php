@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 /**
  * @ORM\Table(name="photos")
  * @ORM\Entity
+ * @ORM\HasLifecycleCallbacks()
  */
 class Photo
 {
@@ -116,5 +117,48 @@ class Photo
         $this->tags = $tags;
 
         return $this;
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getWebPath()
+    {
+        return null === $this->fileName ? null : $this->getUploadDir() . '/' . $this->fileName;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getUploadDir()
+    {
+        return 'uploads/photos';
+    }
+
+    /**
+     * @return null|string
+     */
+    public function getAbsolutePath()
+    {
+        return null === $this->fileName ? null : $this->getUploadRootDir() . '/' . $this->fileName;
+    }
+
+    /**
+     * @return string
+     */
+    protected function getUploadRootDir()
+    {
+        return __DIR__ . '/../../../web/' . $this->getUploadDir();
+    }
+
+    /**
+     * @ORM\PostRemove()
+     */
+    public function removeFile()
+    {
+        $file = $this->getAbsolutePath();
+        if ($file) {
+            unlink($file);
+        }
     }
 }

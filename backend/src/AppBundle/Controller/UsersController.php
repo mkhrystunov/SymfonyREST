@@ -17,19 +17,17 @@ class UsersController extends Controller
      */
     public function getUsersAction()
     {
-        $users = $this->getDoctrine()->getRepository('AppBundle:User')->findAll();
-
-        return ['users' => $users];
+        return $this->getDoctrine()->getRepository('AppBundle:User')->findAll();
     }
 
     /**
      * @param User $user
-     * @return array
+     * @return User
      * @View()
      * @ParamConverter("user", class="AppBundle:User")
      */
     public function getUserAction(User $user)
     {
-        return ['user' => $user];
+        return $user;
     }
 }

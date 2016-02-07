@@ -13,6 +13,7 @@ namespace Symfony\Component\Security\Http\Firewall;
 
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Http\Authorization\AccessDeniedHandlerInterface;
+use Symfony\Component\Security\Core\Security;
 use Symfony\Component\Security\Core\SecurityContextInterface;
 use Symfony\Component\Security\Core\Authentication\AuthenticationTrustResolverInterface;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
@@ -146,7 +147,7 @@ class ExceptionListener
                 }
             } elseif (null !== $this->errorPage) {
                 $subRequest = $this->httpUtils->createRequest($event->getRequest(), $this->errorPage);
-                $subRequest->attributes->set(SecurityContextInterface::ACCESS_DENIED_ERROR, $exception);
+                $subRequest->attributes->set(Security::ACCESS_DENIED_ERROR, $exception);
 
                 $event->setResponse($event->getKernel()->handle($subRequest, HttpKernelInterface::SUB_REQUEST, true));
             }
@@ -200,7 +201,7 @@ class ExceptionListener
     protected function setTargetPath(Request $request)
     {
         // session isn't required when using HTTP basic authentication mechanism for example
-        if ($request->hasSession() && $request->isMethodSafe()) {
+        if ($request->hasSession() && $request->isMethodSafe() && !$request->isXmlHttpRequest()) {
             $request->getSession()->set('_security.'.$this->providerKey.'.target_path', $request->getUri());
         }
     }

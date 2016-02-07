@@ -1,0 +1,13 @@
+AppBundle\Entity\Photo:
+    exclusion_policy: ALL
+    virtual_properties:
+        getWebPath:
+            exclude: true
+            access_type: public_method
+            accessor:
+                getter: getWebPath
+    properties:
+        id:
+            exclude: true
+        tags:
+            exclude: true

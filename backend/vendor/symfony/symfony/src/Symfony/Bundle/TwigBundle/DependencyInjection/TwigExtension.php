@@ -36,13 +36,13 @@ class TwigExtension extends Extension
         $loader = new XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('twig.xml');
 
-        foreach ($configs as &$config) {
+        foreach ($configs as $key => $config) {
             if (isset($config['globals'])) {
                 foreach ($config['globals'] as $name => $value) {
                     if (is_array($value) && isset($value['key'])) {
-                        $config['globals'][$name] = array(
+                        $configs[$key]['globals'][$name] = array(
                             'key' => $name,
-                            'value' => $config['globals'][$name],
+                            'value' => $value,
                         );
                     }
                 }
@@ -55,7 +55,7 @@ class TwigExtension extends Extension
 
         $container->setParameter('twig.exception_listener.controller', $config['exception_controller']);
 
-        $container->setParameter('twig.form.resources', $config['form']['resources']);
+        $container->setParameter('twig.form.resources', $config['form_themes']);
 
         $twigFilesystemLoaderDefinition = $container->getDefinition('twig.loader.filesystem');
 
@@ -75,7 +75,7 @@ class TwigExtension extends Extension
             }
 
             $reflection = new \ReflectionClass($class);
-            if (is_dir($dir = dirname($reflection->getFilename()).'/Resources/views')) {
+            if (is_dir($dir = dirname($reflection->getFileName()).'/Resources/views')) {
                 $this->addTwigPath($twigFilesystemLoaderDefinition, $dir, $bundle);
             }
         }

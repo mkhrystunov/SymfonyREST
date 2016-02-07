@@ -22,6 +22,16 @@ use Symfony\Component\Config\Definition\ConfigurationInterface;
  */
 class Configuration implements ConfigurationInterface
 {
+    private $debug;
+
+    /**
+     * @param bool $debug Whether debugging is enabled or not
+     */
+    public function __construct($debug)
+    {
+        $this->debug = (bool) $debug;
+    }
+
     /**
      * Generates the configuration tree builder.
      *
@@ -69,10 +79,7 @@ class Configuration implements ConfigurationInterface
                 ->booleanNode('test')->end()
                 ->scalarNode('default_locale')->defaultValue('en')->end()
                 ->arrayNode('trusted_hosts')
-                    ->beforeNormalization()
-                        ->ifTrue(function ($v) { return is_string($v); })
-                        ->then(function ($v) { return array($v); })
-                    ->end()
+                    ->beforeNormalization()->ifString()->then(function ($v) { return array($v); })->end()
                     ->prototype('scalar')->end()
                 ->end()
             ->end()
@@ -81,6 +88,7 @@ class Configuration implements ConfigurationInterface
         $this->addCsrfSection($rootNode);
         $this->addFormSection($rootNode);
         $this->addEsiSection($rootNode);
+        $this->addSsiSection($rootNode);
         $this->addFragmentsSection($rootNode);
         $this->addProfilerSection($rootNode);
         $this->addRouterSection($rootNode);
@@ -91,6 +99,7 @@ class Configuration implements ConfigurationInterface
         $this->addValidationSection($rootNode);
         $this->addAnnotationsSection($rootNode);
         $this->addSerializerSection($rootNode);
+        $this->addPropertyAccessSection($rootNode);
 
         return $treeBuilder;
     }
@@ -146,6 +155,17 @@ class Configuration implements ConfigurationInterface
                 ->end()
             ->end()
         ;
+    }
+
+    private function addSsiSection(ArrayNodeDefinition $rootNode)
+    {
+        $rootNode
+            ->children()
+                ->arrayNode('ssi')
+                    ->info('ssi configuration')
+                    ->canBeEnabled()
+                ->end()
+            ->end();
     }
 
     private function addFragmentsSection(ArrayNodeDefinition $rootNode)
@@ -295,7 +315,7 @@ class Configuration implements ConfigurationInterface
             );
 
             foreach ($urls as $i => $url) {
-                if (is_integer($i)) {
+                if (is_int($i)) {
                     if (0 === strpos($url, 'https://') || 0 === strpos($url, '//')) {
                         $urls['http'][] = $urls['ssl'][] = $url;
                     } else {
@@ -325,7 +345,7 @@ class Configuration implements ConfigurationInterface
                                     ->addDefaultChildrenIfNoneSet()
                                     ->prototype('scalar')->defaultValue('FrameworkBundle:Form')->end()
                                     ->validate()
-                                        ->ifTrue(function ($v) {return !in_array('FrameworkBundle:Form', $v); })
+                                        ->ifNotInArray(array('FrameworkBundle:Form'))
                                         ->then(function ($v) {
                                             return array_merge(array('FrameworkBundle:Form'), $v);
                                         })
@@ -433,6 +453,7 @@ class Configuration implements ConfigurationInterface
                             ->prototype('scalar')->end()
                             ->defaultValue(array('en'))
                         ->end()
+                        ->booleanNode('logging')->defaultValue($this->debug)->end()
                     ->end()
                 ->end()
             ->end()
@@ -518,6 +539,22 @@ class Configuration implements ConfigurationInterface
                 ->arrayNode('serializer')
                     ->info('serializer configuration')
                     ->canBeEnabled()
+                ->end()
+            ->end()
+        ;
+    }
+
+    private function addPropertyAccessSection(ArrayNodeDefinition $rootNode)
+    {
+        $rootNode
+            ->children()
+                ->arrayNode('property_access')
+                    ->addDefaultsIfNotSet()
+                    ->info('Property access configuration')
+                    ->children()
+                        ->booleanNode('magic_call')->defaultFalse()->end()
+                        ->booleanNode('throw_exception_on_invalid_index')->defaultFalse()->end()
+                    ->end()
                 ->end()
             ->end()
         ;
