@@ -1,0 +1,16 @@
+NelmioApiDocBundle:
+    resource: "@NelmioApiDocBundle/Resources/config/routing.yml"
+    prefix:   /api/doc
+
+fos_oauth_server_token:
+    resource: "@FOSOAuthServerBundle/Resources/config/routing/token.xml"
+
+users:
+    type: rest
+    prefix: /api
+    resource: "@AppBundle/Controller/UsersController.php"
+
+photos:
+    type: rest
+    prefix: /api
+    resource: "@AppBundle/Controller/PhotosController.php"
