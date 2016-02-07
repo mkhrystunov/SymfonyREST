@@ -1,0 +1,49 @@
+<h1>All Photos</h1>
+<a href="#/photos/add" class="btn btn-primary pull-right">
+    Add New Photo
+    <i class="glyphicon glyphicon-plus"></i>
+</a>
+
+<table class="table photos-table">
+    <thead>
+    <tr>
+        <th>Id</th>
+        <th>Tags</th>
+        <th>Image</th>
+        <th>Actions</th>
+    </tr>
+    </thead>
+    <tr ng-repeat="photo in photos | filterPagination">
+        <td>{{photo.id}}</td>
+        <td>
+            <ul>
+                <li ng-repeat="tag in photo.tags">
+                    {{tag}}
+                </li>
+            </ul>
+        </td>
+        <td>
+            <img ng-src="{{backend_url + '/' + photo.web_path}}" class="img-responsive">
+        </td>
+        <td>
+            <a class="btn btn-danger" ng-click="deletePhoto(photo)">
+                Delete
+                <i class="glyphicon glyphicon-trash"></i>
+            </a>
+            <a ng-href="{{'#/photos/' + photo.id + '/edit'}}" href class="btn btn-info">
+                Edit
+                <i class="glyphicon glyphicon-pencil"></i>
+            </a>
+        </td>
+    </tr>
+</table>
+<div class="text-center">
+    <uib-pagination
+        total-items="photos.length"
+        ng-model="pagination.currentPage"
+        class="pagination"
+        items-per-page="pagination.perPage"
+        boundary-link-numbers="true"
+        rotate="false">
+    </uib-pagination>
+</div>
