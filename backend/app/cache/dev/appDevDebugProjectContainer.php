@@ -826,7 +826,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_metadata_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_9a942f93636500fd8f7c8dae6632b7e334e0d98d5b6e3d7ca18e85e02dab0eda');
+        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
 
         return $instance;
     }
@@ -843,7 +843,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_query_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_9a942f93636500fd8f7c8dae6632b7e334e0d98d5b6e3d7ca18e85e02dab0eda');
+        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
 
         return $instance;
     }
@@ -860,7 +860,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_result_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_9a942f93636500fd8f7c8dae6632b7e334e0d98d5b6e3d7ca18e85e02dab0eda');
+        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
 
         return $instance;
     }
@@ -2372,7 +2372,7 @@ class appDevDebugProjectContainer extends Container
      */
     protected function getJmsSerializer_DatetimeHandlerService()
     {
-        return $this->services['jms_serializer.datetime_handler'] = new \JMS\Serializer\Handler\DateHandler('Y-m-d\\TH:i:sO', 'Europe/Kiev', true);
+        return $this->services['jms_serializer.datetime_handler'] = new \JMS\Serializer\Handler\DateHandler('Y-m-d\\TH:i:sO', 'Europe/Amsterdam', true);
     }
 
     /**
