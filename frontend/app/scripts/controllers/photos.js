@@ -14,8 +14,8 @@ angular.module('restGalleryApp')
       perPage: 2
     };
   })
-  .controller('PhotosCtrl', function ($scope, Photo, backend_url, Pagination) {
-    $scope.backend_url = backend_url;
+  .controller('PhotosCtrl', function ($scope, Photo, config, Pagination) {
+    $scope.backend_url = config.backendUrl;
 
     var loadPhotos = function () {
       Photo.query(function (data) {
@@ -70,8 +70,8 @@ angular.module('restGalleryApp')
       return input.length;
     };
   })
-  .controller('PhotosEditCtrl', function ($scope, Photo, $location, backend_url, $http, $routeParams) {
-    $scope.backend_url = backend_url;
+  .controller('PhotosEditCtrl', function ($scope, Photo, $location, config, $http, $routeParams) {
+    $scope.backend_url = config.backendUrl;
     if ($routeParams.id) {
       $scope.mode = 'edit';
       $scope.loadPhoto = function () { //Issues a GET request to /api/movies/:id to get a movie to update
