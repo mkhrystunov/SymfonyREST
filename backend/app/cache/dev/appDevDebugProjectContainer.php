@@ -826,7 +826,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_metadata_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
+        $instance->setNamespace('sf2orm_default_ff0aa3bf9bab4a3e8113d633918ac18ca5e5dfddf3d5db950654aba9978b57d3');
 
         return $instance;
     }
@@ -843,7 +843,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_query_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
+        $instance->setNamespace('sf2orm_default_ff0aa3bf9bab4a3e8113d633918ac18ca5e5dfddf3d5db950654aba9978b57d3');
 
         return $instance;
     }
@@ -860,7 +860,7 @@ class appDevDebugProjectContainer extends Container
     {
         $this->services['doctrine_cache.providers.doctrine.orm.default_result_cache'] = $instance = new \Doctrine\Common\Cache\ArrayCache();
 
-        $instance->setNamespace('sf2orm_default_245e487dcd0c51b2a682fc954ee33ef11b9132601dc6ac834dac09b8ae6f04e3');
+        $instance->setNamespace('sf2orm_default_ff0aa3bf9bab4a3e8113d633918ac18ca5e5dfddf3d5db950654aba9978b57d3');
 
         return $instance;
     }
@@ -2372,7 +2372,7 @@ class appDevDebugProjectContainer extends Container
      */
     protected function getJmsSerializer_DatetimeHandlerService()
     {
-        return $this->services['jms_serializer.datetime_handler'] = new \JMS\Serializer\Handler\DateHandler('Y-m-d\\TH:i:sO', 'Europe/Amsterdam', true);
+        return $this->services['jms_serializer.datetime_handler'] = new \JMS\Serializer\Handler\DateHandler('Y-m-d\\TH:i:sO', 'Europe/Helsinki', true);
     }
 
     /**
@@ -5505,7 +5505,7 @@ class appDevDebugProjectContainer extends Container
 
             ),
             'assetic.java.bin' => '/usr/bin/java',
-            'assetic.node.bin' => '/usr/bin/node',
+            'assetic.node.bin' => '/usr/local/bin/node',
             'assetic.ruby.bin' => '/usr/bin/ruby',
             'assetic.sass.bin' => '/usr/bin/sass',
             'assetic.reactjsx.bin' => '/usr/bin/jsx',

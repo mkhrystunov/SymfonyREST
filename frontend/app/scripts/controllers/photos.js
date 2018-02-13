@@ -100,6 +100,7 @@ angular.module('restGalleryApp')
         angular.forEach($scope.photo.tags, function (tag) {
           fd.append('tags[]', tag);
         });
+        // TODO handle error
         $http.post('http://localhost:8000/api/photos', fd, {
           transformRequest: angular.identity,
           headers: {'Content-Type': undefined}

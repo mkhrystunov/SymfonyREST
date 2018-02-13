@@ -59,7 +59,7 @@ class PhotosController extends Controller
 
             return new JsonResponse(null, Response::HTTP_CREATED);
         }
-        return new JsonResponse((string)$form->getErrors(), Response::HTTP_BAD_REQUEST);
+        return new JsonResponse((string)$form->getErrors(true), Response::HTTP_BAD_REQUEST);
     }
 
     /**
